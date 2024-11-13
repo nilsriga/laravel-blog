@@ -94,6 +94,6 @@ class PostController extends Controller
     public function category(Category $category)
     {
         $posts = $category->posts()->with('user', 'categories')->get();
-        return view('home', compact('posts'));
+        return view('posts.index', compact('posts'));
     }
 }
