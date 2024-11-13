@@ -9,9 +9,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [PostController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -21,6 +19,7 @@ Route::middleware('auth')->group(function () {
 
 Route::resource('posts', PostController::class)->middleware('auth');
 Route::resource('comments', CommentController::class)->middleware('auth');
+Route::get('/categories/{category}', [PostController::class, 'category'])->name('categories.posts');
 
 
 require __DIR__.'/auth.php';
