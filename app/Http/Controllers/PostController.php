@@ -23,16 +23,20 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => 'required',
-            'body' => 'required',
-            'categories' => 'required|array',
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'categories' => 'array',
+            'categories.*' => 'exists:categories,id',
         ]);
 
-        $post = auth()->user()->posts()->create($request->only('title', 'body'));
-        $post->categories()->attach($request->categories);
+        // Strip all HTML tags except <p>, <br>, <strong>, <em>
+        $validated['body'] = strip_tags($validated['body'], '<p><br><strong><em>');
 
-        return redirect()->route('posts.index');
+        $post = Post::create($validated);
+        $post->categories()->attach($validated['categories']);
+
+        return redirect()->route('posts.index')->with('success', 'Post created successfully.');
     }
 
     public function edit(Post $post)
@@ -49,16 +53,17 @@ class PostController extends Controller
         if (Gate::denies('update', $post)) {
             abort(403);
         }
-        $request->validate([
-            'title' => 'required',
-            'body' => 'required',
-            'categories' => 'required|array',
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'categories' => 'array',
+            'categories.*' => 'exists:categories,id',
         ]);
 
-        $post->update($request->only('title', 'body'));
-        $post->categories()->sync($request->categories);
+        $post->update($validated);
+        $post->categories()->sync($validated['categories']);
 
-        return redirect()->route('posts.index');
+        return redirect()->route('posts.index')->with('success', 'Post updated successfully.');
     }
 
     public function destroy(Post $post)
@@ -67,22 +72,28 @@ class PostController extends Controller
             abort(403);
         }
         $post->delete();
-        return redirect()->route('posts.index');
+        return redirect()->route('home');
     }
 
     public function search(Request $request)
     {
-        $query = $request->input('query');
-        $posts = Post::where('title', 'like', "%$query%")
-                     ->orWhere('body', 'like', "%$query%")
-                     ->get();
+        // Validate the search input to ensure it's safe
+        $request->validate([
+            'query' => 'required|string|min:2|max:255',
+        ]);
 
-        return view('posts.index', compact('posts'));
+        // Use the query to search for posts
+        $query = $request->input('query');
+        $posts = Post::where('title', 'LIKE', "%{$query}%")
+            ->orWhere('body', 'LIKE', "%{$query}%")
+            ->paginate(10);
+
+        return view('posts.search', compact('posts', 'query'));
     }
 
     public function category(Category $category)
     {
         $posts = $category->posts()->with('user', 'categories')->get();
-        return view('posts.index', compact('posts'));
+        return view('home', compact('posts'));
     }
 }
