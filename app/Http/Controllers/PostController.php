@@ -5,8 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Models\Category;
-use App\Models\Comment;
 use Illuminate\Support\Facades\Gate;
+use Intervention\Image\Facades\Image;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -26,12 +27,6 @@ class PostController extends Controller
         return view('posts.show', compact('post'));
     }
 
-    public function create()
-    {
-        $categories = Category::all();
-        return view('posts.create', compact('categories'));
-    }
-
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -39,16 +34,83 @@ class PostController extends Controller
             'body' => 'required|string',
             'categories' => 'array',
             'categories.*' => 'exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // Validation for image
         ]);
-
+    
         // Strip all HTML tags except <p>, <br>, <strong>, <em>
         $validated['body'] = strip_tags($validated['body'], '<p><br><strong><em>');
-
-        $post = Post::create($validated);
+    
+        // Handle image upload if present
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imagePath = $image->store('post_images', 'public'); // Store image in the 'public/images' directory
+    
+            // Resize and optimize the image
+            $resizedImage = Image::make(Storage::path('public/' . $imagePath))->resize(800, 600, function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            })->encode();
+    
+            // Save the resized image
+            Storage::put('public/' . $imagePath, $resizedImage);
+    
+            $validated['image_url'] = $imagePath;  // Save the image path to the database
+        }
+    
+        // Create the post
+        $post = auth()->user()->posts()->create($validated);
         $post->categories()->attach($validated['categories']);
-
-        return redirect()->route('posts.index')->with('success', 'Post created successfully.');
+    
+        return redirect()->route('home')->with('success', 'Post created successfully.');
     }
+    
+    public function update(Request $request, Post $post)
+    {
+        if (Gate::denies('update', $post)) {
+            abort(403);
+        }
+    
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'categories' => 'array',
+            'categories.*' => 'exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // Validation for image
+        ]);
+    
+        // Strip all HTML tags except <p>, <br>, <strong>, <em>
+        $validated['body'] = strip_tags($validated['body'], '<p><br><strong><em>');
+    
+        // Handle image upload if present
+        if ($request->hasFile('image')) {
+            // Delete the old image if it exists
+            if ($post->image_url && Storage::exists('public/' . $post->image_url)) {
+                Storage::delete('public/' . $post->image_url);
+            }
+    
+            $image = $request->file('image');
+            $imagePath = $image->store('post_images', 'public'); // Store image in the 'public/images' directory
+    
+            // Resize and optimize the image
+            $resizedImage = Image::make(Storage::path('public/' . $imagePath))->resize(800, 600, function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            })->encode();
+    
+            // Save the resized image
+            Storage::put('public/' . $imagePath, $resizedImage);
+    
+            $validated['image_url'] = $imagePath;  // Update the image path in the database
+        }
+    
+        // Update the post
+        $post->update($validated);
+        $post->categories()->sync($validated['categories']);
+    
+        return redirect()->route('home')->with('success', 'Post updated successfully.');
+    }
+    
+    
 
     public function edit(Post $post)
     {
@@ -57,24 +119,6 @@ class PostController extends Controller
         }
         $categories = Category::all();
         return view('posts.edit', compact('post', 'categories'));
-    }
-
-    public function update(Request $request, Post $post)
-    {
-        if (Gate::denies('update', $post)) {
-            abort(403);
-        }
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'categories' => 'array',
-            'categories.*' => 'exists:categories,id',
-        ]);
-
-        $post->update($validated);
-        $post->categories()->sync($validated['categories']);
-
-        return redirect()->route('posts.index')->with('success', 'Post updated successfully.');
     }
 
     public function destroy(Post $post)
