@@ -15,6 +15,14 @@ class PostController extends Controller
         return view('posts.index', compact('posts'));
     }
 
+    public function show(Post $post)
+    {
+        // Load related data if needed (e.g., user, categories, and comments)
+        $post->load('user', 'categories', 'comments.user'); // Load the post with related data
+
+        return view('posts.show', compact('post'));
+    }
+
     public function create()
     {
         $categories = Category::all();
