@@ -31,7 +31,6 @@ class CommentController extends Controller
         if (Gate::denies('update', $comment)) {
             abort(403, 'Unauthorized action.');
         }
-
     }
 
     // Update an existing comment
@@ -59,4 +58,5 @@ class CommentController extends Controller
         $comment->delete();
         return redirect()->route('posts.show', $comment->post)->with('success', 'Comment deleted successfully.');
     }
+
 }

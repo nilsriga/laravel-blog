@@ -22,6 +22,11 @@
                 </p>
             @endif
 
+            <!-- Display the comments count -->
+            <p class="text-sm text-gray-500">
+                {{ $post->comments_count }} {{ Str::plural('comment', $post->comments_count) }}
+            </p>
+
             {{-- Action buttons (Edit and Delete) for authorized users --}}
             <div class="mt-2">
                 @can('update', $post)

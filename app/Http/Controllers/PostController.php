@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Models\Category;
+use App\Models\Comment;
 use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
     public function index()
     {
-        $posts = Post::with('user', 'categories')->get();
+        $posts = Post::with('user', 'categories')
+            ->withCount('comments') // Add this to load the count of comments for each post
+            ->get();
         return view('posts.index', compact('posts'));
     }
 
