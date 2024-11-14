@@ -110,7 +110,11 @@ class PostController extends Controller
         return redirect()->route('home')->with('success', 'Post updated successfully.');
     }
     
-    
+    public function create()
+    {
+        $categories = Category::all();
+        return view('posts.create', compact('categories'));
+    }
 
     public function edit(Post $post)
     {
