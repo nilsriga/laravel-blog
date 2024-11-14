@@ -1,7 +1,7 @@
 @props(['post'])
 
 <a href="{{ route('posts.show', $post) }}">
-    <div class="bg-white p-4 rounded-lg shadow-md my-4 hover:bg-gray-100 transition-all duration-200 flex flex-col md:flex-row">
+    <div class="bg-white p-4 rounded-lg shadow-md my-4 hover:bg-gray-100 transition-all duration-200 flex flex-col md:flex-row hover:scale-[101%]">
         <!-- Left side content -->
         <div class="flex-1">
             <h2 class="text-xl font-semibold">{{ strip_tags($post->title, '<p><br><strong><em>') }}</h2>
