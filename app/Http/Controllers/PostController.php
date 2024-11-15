@@ -32,9 +32,9 @@ class PostController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'categories' => 'array',
+            'categories' => 'nullable|array',  // Allow 'categories' to be nullable
             'categories.*' => 'exists:categories,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // Validation for image
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:10240',  // Increased max size to 10MB
         ]);
     
         // Strip all HTML tags except <p>, <br>, <strong>, <em>
@@ -44,72 +44,86 @@ class PostController extends Controller
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $imagePath = $image->store('post_images', 'public'); // Store image in the 'public/images' directory
+            $imageFullPath = storage_path('app/public/' . $imagePath);
+    
+            // Check if image file exists
+            if (!file_exists($imageFullPath)) {
+                \Log::error('Image not found at: ' . $imageFullPath);
+                return back()->withErrors('Error uploading image. Please try again.');
+            }
     
             // Resize and optimize the image
-            $resizedImage = Image::make(Storage::path('public/' . $imagePath))->resize(800, 600, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            })->encode();
+            $resizedImage = Image::make($imageFullPath)
+                ->resize(800, 600, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->encode('jpg', 75);
     
             // Save the resized image
-            Storage::put('public/' . $imagePath, $resizedImage);
-    
+            file_put_contents($imageFullPath, $resizedImage);
             $validated['image_url'] = $imagePath;  // Save the image path to the database
         }
     
         // Create the post
         $post = auth()->user()->posts()->create($validated);
-        $post->categories()->attach($validated['categories']);
+    
+        // Attach categories if provided
+        $post->categories()->attach($validated['categories'] ?? []);
     
         return redirect()->route('home')->with('success', 'Post created successfully.');
     }
     
+
     public function update(Request $request, Post $post)
     {
         if (Gate::denies('update', $post)) {
             abort(403);
         }
-    
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'categories' => 'array',
+            'categories' => 'nullable|array',  // Allow 'categories' to be nullable
             'categories.*' => 'exists:categories,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // Validation for image
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:10240',
         ]);
-    
-        // Strip all HTML tags except <p>, <br>, <strong>, <em>
+
         $validated['body'] = strip_tags($validated['body'], '<p><br><strong><em>');
-    
-        // Handle image upload if present
+
         if ($request->hasFile('image')) {
-            // Delete the old image if it exists
             if ($post->image_url && Storage::exists('public/' . $post->image_url)) {
                 Storage::delete('public/' . $post->image_url);
             }
-    
+
             $image = $request->file('image');
-            $imagePath = $image->store('post_images', 'public'); // Store image in the 'public/images' directory
-    
-            // Resize and optimize the image
-            $resizedImage = Image::make(Storage::path('public/' . $imagePath))->resize(800, 600, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            })->encode();
-    
-            // Save the resized image
-            Storage::put('public/' . $imagePath, $resizedImage);
-    
-            $validated['image_url'] = $imagePath;  // Update the image path in the database
+            $imagePath = $image->store('post_images', 'public');
+            $imageFullPath = storage_path('app/public/' . $imagePath);
+
+            if (!file_exists($imageFullPath)) {
+                \Log::error('Image not found at: ' . $imageFullPath);
+                return back()->withErrors('Error uploading image. Please try again.');
+            }
+
+            $resizedImage = Image::make($imageFullPath)
+                ->resize(800, 600, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->encode('jpg', 75);
+
+            file_put_contents($imageFullPath, $resizedImage);
+            $validated['image_url'] = $imagePath;
         }
-    
-        // Update the post
+
         $post->update($validated);
-        $post->categories()->sync($validated['categories']);
-    
+
+        // Check if 'categories' key exists before syncing, default to empty array if missing
+        $post->categories()->sync($validated['categories'] ?? []);
+
         return redirect()->route('home')->with('success', 'Post updated successfully.');
     }
-    
+
     public function create()
     {
         $categories = Category::all();

@@ -1,7 +1,8 @@
 @props(['post'])
 
 <a href="{{ route('posts.show', $post) }}">
-    <div class="bg-white p-4 rounded-lg shadow-md my-4 hover:bg-gray-100 transition-all duration-200 flex flex-col md:flex-row hover:scale-[101%]">
+    <div
+        class="bg-white p-4 rounded-lg shadow-md my-4 hover:bg-gray-100 transition-all duration-200 flex flex-col md:flex-row hover:scale-[101%]">
         <!-- Left side content -->
         <div class="flex-1">
             <h2 class="text-xl font-semibold">{{ strip_tags($post->title, '<p><br><strong><em>') }}</h2>
@@ -9,7 +10,8 @@
             <p class="text-sm text-gray-500">By {{ $post->user->name }} on {{ $post->created_at->format('M d, Y') }}</p>
             <p class="text-sm text-gray-500">Categories:
                 @foreach ($post->categories as $category)
-                    <a href="{{ route('categories.posts', $category) }}" class="bg-gray-200 rounded-full px-2 py-1 text-xs font-semibold text-gray-700">
+                    <a href="{{ route('categories.posts', $category) }}"
+                        class="bg-gray-200 rounded-full px-2 py-1 text-xs font-semibold text-gray-700">
                         {{ $category->name }}
                     </a>
                 @endforeach
@@ -34,9 +36,11 @@
         </div>
 
         <!-- Right side image (if available) -->
-        @if ($post->image_url) <!-- Check if there is an image -->
+        @if ($post->image_url)
+            <!-- Check if there is an image -->
             <div class="w-full md:w-48 mt-4 md:mt-0 ml-0 md:ml-4">
-                <img src="/storage/{{ $post->image_url }}" alt="Image for {{ $post->title }}" class="w-full h-auto rounded-lg object-cover">
+                <img src="/storage/{{ $post->image_url }}" alt="Image for {{ $post->title }}"
+                    class="w-full h-48 rounded-lg object-cover">
             </div>
         @endif
     </div>
